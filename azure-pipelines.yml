@@ -1,0 +1,33 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  # Use the exact public Gateway URL; this is public frontend configuration, not a secret.
+  VITE_API_BASE_URL: "https://gatway.delightfulmushroom-d07c331c.southindia.azurecontainerapps.io"
+
+steps:
+- task: Docker@2
+  displayName: Build frontend image
+  inputs:
+    containerRegistry: "Ecommerce"
+    repository: "ecommerce-frontend"
+    command: "build"
+    Dockerfile: "$(Build.SourcesDirectory)/Dockerfile"
+    buildContext: "$(Build.SourcesDirectory)"
+    tags: |
+      $(Build.BuildId)
+    arguments: "--build-arg VITE_API_BASE_URL=$(VITE_API_BASE_URL)"
+
+- task: Docker@2
+  displayName: Push frontend image
+  inputs:
+    containerRegistry: "Ecommerce"
+    repository: "ecommerce-frontend"
+    command: "push"
+    tags: |
+      $(Build.BuildId)
