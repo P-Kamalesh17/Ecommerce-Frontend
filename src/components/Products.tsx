@@ -1,5 +1,4 @@
 import { useCategoryData } from '@/context/CategoryContext'
-import React from 'react'
 import { ProductCard } from './ProductCard'
 
 const Products = () => {

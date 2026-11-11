@@ -4,16 +4,11 @@ import {
   useContext,
   useEffect,
   useState,
-  type Dispatch,
   type ReactNode,
-  type SetStateAction,
 } from "react"
 import { useNavigate, type NavigateFunction } from "react-router-dom"
+import { authFetch, tokenStore } from "@/lib/auth"
 
-type Category = {
-  categoryId : number
-  categoryName: string
-}
 
 type DataContextType = {
   loading: boolean
@@ -23,7 +18,6 @@ type DataContextType = {
   handleCartItem : (id : number, quant : number) => Promise<void>
   handleCartRemoveItem : (cartItemId : number) => Promise<void>
   updateCart: (cartItemId : number, quant : number,oldQuant : number) => Promise<void>
-  placeOrder : () => Promise<void>
   getCartItems : () => Promise<void>
   error: string | null
 }
@@ -32,6 +26,7 @@ type CartItem = {
     id : number,
     productId : number,
     productName : string
+    imageUrl : string,
     unitPrice : number,
     quantity : number,
     subtotal : number
@@ -55,9 +50,7 @@ export function CartDataProvider({ children }: { children: ReactNode }) {
             return
         }
 
-        const token = localStorage.getItem("token")
-
-        if (!token) {
+        if (!tokenStore.hasSession()) {
             setError("Please login first.")
             return
         }
@@ -66,16 +59,14 @@ export function CartDataProvider({ children }: { children: ReactNode }) {
             setLoading(true)
             setError(null)
 
-            const response = await fetch(
-            "https://localhost:44357/api/Cart/add-item",
+            const response = await authFetch(
+            `/api/Cart/items`,
             {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                    userId : "",
                     productId: productId,
                     quantity: quantity,
                 }),
@@ -118,18 +109,15 @@ export function CartDataProvider({ children }: { children: ReactNode }) {
             console.log("same"); 
             return;
         }
-        const token = localStorage.getItem("token")
-
-        if (!token) {
+        if (!tokenStore.hasSession()) {
             setError("Please login first.")
             return
         }
         try {
-            const responce = await fetch(`https://localhost:44357/api/Cart/update-item/${cartItemId}`,{
+            const responce = await authFetch(`/api/Cart/items/${cartItemId}`,{
                 method : "PUT",
                 headers: {
                         "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
                     },
                 
                 body : JSON.stringify({
@@ -156,19 +144,13 @@ export function CartDataProvider({ children }: { children: ReactNode }) {
     }
     const handleCartRemoveItem = async (cartItemId : number) : Promise<void> => {
         try {
-            const token = localStorage.getItem("token")
-
-            if (!token) {
+            if (!tokenStore.hasSession()) {
                 setError("Please login first.")
                 return
             }
             setLoading(true);
-        const responce = await fetch(`https://localhost:44357/api/Cart/remove-item/${cartItemId}`,{
+        const responce = await authFetch(`/api/Cart/items/${cartItemId}`,{
                 method : "DELETE",
-                headers : {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${token}`,
-                        }
             });
             const data = await responce.json();
             if(!responce.ok){
@@ -192,29 +174,28 @@ export function CartDataProvider({ children }: { children: ReactNode }) {
         }
     }
     const getCartItems = async () : Promise<void> => {
-        const token = localStorage.getItem("token")
-
-            if (!token) {
+            if (!tokenStore.hasSession()) {
                 setError("Please login first.")
+                setLoading(false)
                 return
             }
-        
+
+            setError(null) // clear the stale "Please login first." from before login
+
             try {
-                const responce = await fetch(`https://localhost:44357/api/Cart/get-cart`,
-                    {
-                        method : "GET",
-                        headers : {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${token}`,
-                        }
-                    }
-                )
+                const responce = await authFetch(`/api/Cart`)
+                // 404 = this user has no cart yet, treat as empty
+                if(responce.status === 404){
+                    setCartItems([])
+                    setCartLength(0)
+                    return
+                }
                 const data = await responce.json();
                 if(!responce.ok){
                         const message =
                         typeof data === "string"
                         ? data
-                        : data.message || data.error || "Failed to add item to cart."
+                        : data.message || data.error || "Failed to load cart."
 
                     throw new Error(message)
                 }
@@ -229,50 +210,12 @@ export function CartDataProvider({ children }: { children: ReactNode }) {
             }
         }
     
-    const placeOrder = async () : Promise<void> => {
-        const token = localStorage.getItem("token")
-
-        if (!token) {
-            setError("Please login first.")
-            return
-        }
-        
-        try {
-            const responce = await fetch(`https://localhost:44357/api/Cart/checkout`,
-                {
-                        method : "POST",
-                        headers : {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${token}`,
-                        },
-                        body : JSON.stringify({
-                            userId : "",
-                            ShippingAddress : ""
-                        })
-                    }
-                )
-            const data = await responce.json();
-            if(!responce.ok){
-                        const message =
-                        typeof data === "string"
-                        ? data
-                        : data.message || data.error || "Failed to add item to cart."
-
-                throw new Error(message)
-            }
-            console.log(data);
-            window.alert("Order placed successfully!");
-            await getCartItems();
-            } catch (error) {
-                console.log(error);
-            }
-    }
     useEffect(()=> {
         getCartItems();
     },[])
 
   return (
-    <DataContext.Provider value={{ loading, cartLength, cartItems,navigate, error,getCartItems, handleCartItem,handleCartRemoveItem, updateCart, placeOrder }}>
+    <DataContext.Provider value={{ loading, cartLength, cartItems,navigate, error,getCartItems, handleCartItem,handleCartRemoveItem, updateCart }}>
       {children}
     </DataContext.Provider>
   )

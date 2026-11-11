@@ -3,6 +3,7 @@ import { Eye, EyeOff } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
 import { cn } from "@/lib/utils"
+import { tokenStore } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -21,6 +22,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 type LoginData = {
   email: string
@@ -46,7 +49,7 @@ const initialRegisterData: RegisterData = {
   email: "",
   password: "",
   confirmPassword: "",
-phoneNumber: "",
+  phoneNumber: "",
   address: "",
 }
 
@@ -99,7 +102,6 @@ export function LoginRegister() {
         !registerData.email.trim() ||
         !registerData.password.trim() ||
         !registerData.confirmPassword.trim() ||
-        !registerData.phoneNumber.trim() ||
         !registerData.address.trim()
       ) {
         setError("Please fill in all fields.")
@@ -113,8 +115,8 @@ export function LoginRegister() {
     }
 
     const url = isLogin
-      ? "https://localhost:44357/api/Authentication/login-user"
-      : "https://localhost:44357/api/Authentication/register-user"
+      ? `${API_BASE_URL}/api/Authentication/login`
+      : `${API_BASE_URL}/api/Authentication/register`
 
     const requestBody = isLogin
       ? {
@@ -125,7 +127,7 @@ export function LoginRegister() {
           fullName: registerData.fullName.trim(),
           email: registerData.email.trim(),
           password: registerData.password,
-          phoneNumber: registerData.phoneNumber.trim(),
+          phoneNumber: registerData.phoneNumber.trim() || null,
           address: registerData.address.trim(),
         }
 
@@ -148,10 +150,10 @@ export function LoginRegister() {
           data = { message: rawBody }
         }
       }
-
+      console.log(data);
       if (!response.ok) {
         setError(
-          (typeof data === "string" ? data : data.error || data.message) ||
+          (typeof data === "string" ? data : data.message || data.error) ||
             "Request failed."
         )
         return
@@ -160,14 +162,13 @@ export function LoginRegister() {
       /* ---------- Login success ---------- */
 
       if (isLogin) {
-        if (!data.token) {
+        if (!data.token || !data.refreshToken) {
           setError("Login succeeded, but no token was returned by the API.")
           return
         }
 
-        localStorage.setItem("token", data.token)
-
-        console.log("Login successful:", data)
+        // access token -> memory, refresh token -> localStorage
+        tokenStore.setTokens(data)
 
         navigate("/")
         return
@@ -336,7 +337,7 @@ export function LoginRegister() {
                     </div>
                   </div>
 
-                  {/* Phone Number */}
+                  {/* Phone Number (optional) */}
                   <div className="grid gap-2">
                     <Label htmlFor="phoneNumber">Phone Number</Label>
 
@@ -344,9 +345,9 @@ export function LoginRegister() {
                       id="phoneNumber"
                       type="tel"
                       placeholder="9876543210"
+                      maxLength={20}
                       value={registerData.phoneNumber}
                       onChange={handleChange}
-                      required
                     />
                   </div>
 

@@ -33,6 +33,7 @@ type ProductCardProps = {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
   const { handleCartItem } = useCartData();
   const [quantity, setQuantity] = useState(1)
@@ -52,7 +53,7 @@ export function ProductCard({ product }: ProductCardProps) {
       <div className="absolute inset-0 z-30 aspect-video bg-black/35" />
 
       <img
-        src={(product.imageUrl)? `https://localhost:44357${product.imageUrl}` : Hero}
+        src={(product.imageUrl)? `${API_BASE_URL}${product.imageUrl}` : Hero}
         alt={product.name}
         className="relative z-20 aspect-video w-full object-cover"
       />

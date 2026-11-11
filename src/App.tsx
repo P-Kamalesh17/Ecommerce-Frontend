@@ -126,18 +126,23 @@ import { Navbar } from "@/components/Navbar"
 import { LoginRegister } from "@/Pages/LoginRegister"
 import Home from "./Pages/Home"
 import Cart from "./Pages/Cart"
+import Orders from "./Pages/Orders"
 import { CartDataProvider } from "./context/CartContext"
+import { OrderDataProvider } from "./context/OrderContext"
 
 const App = () => {
   return (
     <BrowserRouter>
     <CartDataProvider>
+    <OrderDataProvider>
       <Navbar />
       <Routes>
         <Route path="/" element={<Home/>} />
         <Route path="/login" element={<LoginRegister />} />
         <Route path="/cart" element={<Cart/>}/>
+        <Route path="/orders" element={<Orders/>}/>
       </Routes>
+      </OrderDataProvider>
       </CartDataProvider>
     </BrowserRouter>
   )

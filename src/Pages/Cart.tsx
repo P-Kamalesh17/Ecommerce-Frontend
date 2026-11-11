@@ -1,6 +1,8 @@
 import { CartCard } from "@/components/CartCard"
 import { Button } from "@/components/ui/button"
 import { useCartData } from "@/context/CartContext"
+import { useOrderData } from "@/context/OrderContext"
+import { authFetch, tokenStore } from "@/lib/auth"
 import { Separator } from "@/components/ui/separator"
 import { useState } from "react"
 import {
@@ -20,7 +22,8 @@ type CartSummary = {
 }
 
 const Carts = () => {
-  const { cartItems, loading, error, cartLength,navigate ,placeOrder} = useCartData()
+  const { cartItems, loading, error, cartLength,navigate } = useCartData()
+  const { checkout } = useOrderData()
   const [open, setOpen] = useState<boolean>(false)
   const [summary, setSummary] = useState<CartSummary | null>(null)
   const [summaryLoading, setSummaryLoading] = useState<boolean>(false)
@@ -40,10 +43,7 @@ const Carts = () => {
   }
 
   const getSummary = async() => {
-    const token = localStorage.getItem("token")
-
-            if (!token) {
-                console.log("Please login first.")
+            if (!tokenStore.hasSession()) {
                 navigate("/login")
                 return
             }
@@ -51,21 +51,13 @@ const Carts = () => {
             setSummaryLoading(true)
             setSummaryError(null)
             try {
-                const responce = await fetch(`https://localhost:44357/api/Cart/get-cart-summary`,
-                    {
-                        method : "GET",
-                        headers : {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${token}`,
-                        }
-                    }
-                )
+                const responce = await authFetch(`/api/Cart/summary`)
                 const data = await responce.json();
                 if(!responce.ok){
                         const message =
                         typeof data === "string"
                         ? data
-                        : data.message || data.error || "Failed to add item to cart."
+                        : data.message || data.error || "Failed to load summary."
 
                     throw new Error(message)
                 }
@@ -99,8 +91,9 @@ const Carts = () => {
             summary={summary}
             loading={summaryLoading}
             error={summaryError}
-            placeOrder={placeOrder}
+            checkout={checkout}
             setOpen={setOpen}
+            navigate={navigate}
           />
         </DialogContent>
       </Dialog>
@@ -114,11 +107,29 @@ type ProfileFormProps = {
   summary: CartSummary | null
   loading: boolean
   error: string | null
-  placeOrder : () => Promise<void>
+  checkout : () => Promise<unknown>
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
+  navigate: (path: string) => void
 }
 
-function ProfileForm({ summary, loading, error, placeOrder,setOpen }: ProfileFormProps) {
+function ProfileForm({ summary, loading, error, checkout, setOpen, navigate }: ProfileFormProps) {
+  const [placing, setPlacing] = useState(false)
+  const [placeError, setPlaceError] = useState<string | null>(null)
+
+  const handlePlaceOrder = async () => {
+    setPlacing(true)
+    setPlaceError(null)
+    try {
+      await checkout()
+      setOpen(false)
+      navigate("/orders")
+    } catch (error) {
+      setPlaceError(error instanceof Error ? error.message : "Checkout failed.")
+    } finally {
+      setPlacing(false)
+    }
+  }
+
   if (loading) {
     return <p className="py-6 text-center text-sm text-muted-foreground">Loading summary...</p>
   }
@@ -158,10 +169,13 @@ function ProfileForm({ summary, loading, error, placeOrder,setOpen }: ProfileFor
         <span className="text-lg font-bold">₹{summary.totalAmount.toFixed(2)}</span>
       </div>
 
-      <Button className="w-full font-semibold" onClick={
-        () => {
-          placeOrder();
-      }}>Place Order</Button>
+      {placeError && (
+        <p className="text-sm text-destructive">{placeError}</p>
+      )}
+
+      <Button className="w-full font-semibold" disabled={placing} onClick={handlePlaceOrder}>
+        {placing ? "Placing order..." : "Place Order"}
+      </Button>
     </div>
   )
 }

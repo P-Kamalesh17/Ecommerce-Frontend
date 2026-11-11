@@ -4,10 +4,10 @@ import {
   useContext,
   useEffect,
   useState,
-  type Dispatch,
   type ReactNode,
-  type SetStateAction,
 } from "react"
+
+import { authFetch, tokenStore } from "@/lib/auth"
 
 type Category = {
   categoryId : number
@@ -55,9 +55,7 @@ export function CategoryDataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      const token = localStorage.getItem("token")
-
-      if (!token) {
+      if (!tokenStore.hasSession()) {
         setError("Please login first.")
         setLoading(false)
         return
@@ -67,16 +65,10 @@ export function CategoryDataProvider({ children }: { children: ReactNode }) {
         setLoading(true)
         setError(null)
 
-        const response = await fetch(
+        const response = await authFetch(
           ((categoryId === null) ?
-            "https://localhost:44357/api/Product/get-all-products" 
-            : `https://localhost:44357/api/Product/get-by-category/${categoryId}`),
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
+            `/api/Product/get-all-products`
+            : `/api/Product/get-by-category/${categoryId}`)
         )
 
         const data = await response.json()
@@ -104,9 +96,7 @@ export function CategoryDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
 
     const fetchCategories = async () => {
-      const token = localStorage.getItem("token")
-
-      if (!token) {
+      if (!tokenStore.hasSession()) {
         setError("Please login first.")
         setLoading(false)
         return
@@ -116,15 +106,7 @@ export function CategoryDataProvider({ children }: { children: ReactNode }) {
         setLoading(true)
         setError(null)
 
-        const response = await fetch(
-          "https://localhost:44357/api/Category/get-all-category",
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        )
+        const response = await authFetch(`/api/Category/get-all-category`)
 
         const data = await response.json()
         
